@@ -1,0 +1,32 @@
+export default function ProductCard({ item, t }) {
+  const locale = t.locale
+  const loc = (item.locales||[]).find(l=>l.locale===locale) || (item.locales||[])[0] || {title:item.title, description:item.description}
+  const counts = item.counts || {auction:0,buy_now:0,tokenization:0,raffle:0,not_interested:0}
+  const total = Object.values(counts).reduce((a,b)=>a+Number(b||0),0) || 1
+  const pct = (k)=> Math.round((Number(counts[k]||0)/total)*100)
+
+  return (
+    <div className="bg-slate-800/60 border border-slate-700 rounded-xl overflow-hidden hover:border-blue-500/40 transition">
+      <div className="aspect-video bg-slate-700/50 flex items-center justify-center text-slate-300">
+        {item.images?.[0] ? (
+          <img src={item.images[0]} alt={loc.title} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-sm">{t('no_image')}</span>
+        )}
+      </div>
+      <div className="p-4">
+        <h3 className="text-white font-semibold mb-1">{loc.title}</h3>
+        <p className="text-slate-300 text-sm line-clamp-2 mb-3">{loc.description}</p>
+        <div className="grid grid-cols-2 gap-2 text-xs text-blue-200">
+          <div className="bg-slate-900/40 rounded p-2">{t('auction')}: {pct('auction')}%</div>
+          <div className="bg-slate-900/40 rounded p-2">{t('buy_now')}: {pct('buy_now')}%</div>
+          <div className="bg-slate-900/40 rounded p-2">{t('tokenization')}: {pct('tokenization')}%</div>
+          <div className="bg-slate-900/40 rounded p-2">{t('raffle')}: {pct('raffle')}%</div>
+        </div>
+        <a href={`/products/${item._id}`} className="mt-3 inline-flex items-center justify-center w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 rounded">
+          {t('vote_cta')}
+        </a>
+      </div>
+    </div>
+  )
+}
