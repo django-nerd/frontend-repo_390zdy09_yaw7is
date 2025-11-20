@@ -7,12 +7,17 @@ export default function ProductCard({ item, t }) {
 
   return (
     <div className="bg-slate-800/60 border border-slate-700 rounded-xl overflow-hidden hover:border-blue-500/40 transition">
-      <div className="aspect-video bg-slate-700/50 flex items-center justify-center text-slate-300">
-        {item.images?.[0] ? (
-          <img src={item.images[0]} alt={loc.title} className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-sm">{t('no_image')}</span>
-        )}
+      <div className="relative">
+        <div className="aspect-video bg-slate-700/50 flex items-center justify-center text-slate-300">
+          {item.images?.[0] ? (
+            <img src={item.images[0]} alt={loc.title} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-sm">{t('no_image')}</span>
+          )}
+        </div>
+        <div className="absolute top-2 left-2">
+          <span className="px-2 py-1 text-[10px] uppercase tracking-wide rounded bg-indigo-500/30 text-indigo-200 border border-indigo-400/40">Preview</span>
+        </div>
       </div>
       <div className="p-4">
         <h3 className="text-white font-semibold mb-1">{loc.title}</h3>

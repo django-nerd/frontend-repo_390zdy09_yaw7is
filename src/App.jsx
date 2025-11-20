@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import DemoHeader from './components/DemoHeader'
 import ProductCard from './components/ProductCard'
 import ProductDetail from './components/ProductDetail'
+import { getMockProducts } from './lib/mockData'
 
 const dicts = {
   ro: {
@@ -23,6 +24,8 @@ const dicts = {
     feed_title: 'Produse în votare',
     admin_panel: 'Panou Admin',
     create_demo: 'Adaugă 3 produse demo',
+    desired_shares: 'Număr dorit de acțiuni',
+    desired_tickets: 'Număr dorit de bilete',
   },
   en: {
     no_image: 'No image',
@@ -42,6 +45,8 @@ const dicts = {
     feed_title: 'Products in voting',
     admin_panel: 'Admin Panel',
     create_demo: 'Seed 3 demo products',
+    desired_shares: 'Desired shares',
+    desired_tickets: 'Desired tickets',
   },
   it: {
     no_image: 'Nessuna immagine',
@@ -61,6 +66,8 @@ const dicts = {
     feed_title: 'Prodotti in votazione',
     admin_panel: 'Pannello Admin',
     create_demo: 'Crea 3 prodotti demo',
+    desired_shares: 'Azioni desiderate',
+    desired_tickets: 'Biglietti desiderati',
   },
 }
 
@@ -74,10 +81,24 @@ function useI18n(){
 
 function Feed({ t, apiBase }){
   const [items, setItems] = useState(null)
+  const [fromMock, setFromMock] = useState(false)
   const load = async ()=>{
-    const res = await fetch(`${apiBase}/api/products`)
-    const data = await res.json()
-    setItems(data.data)
+    try{
+      const res = await fetch(`${apiBase}/api/products`, { method: 'GET' })
+      if(!res.ok) throw new Error('bad status')
+      const data = await res.json()
+      if(Array.isArray(data?.data) && data.data.length){
+        setItems(data.data)
+        setFromMock(false)
+        return
+      }
+      // fallback if empty
+      setItems(getMockProducts())
+      setFromMock(true)
+    }catch{
+      setItems(getMockProducts())
+      setFromMock(true)
+    }
   }
   useEffect(()=>{ load() },[])
   return (
@@ -86,6 +107,9 @@ function Feed({ t, apiBase }){
         <h1 className="text-2xl font-semibold text-white">{t('feed_title')}</h1>
         <a href="/admin" className="text-blue-300 hover:text-blue-200 text-sm">{t('admin_panel')}</a>
       </div>
+      {fromMock && (
+        <div className="mb-3 text-xs text-amber-300">Demo preview: datele sunt simulate local pentru a vedea interfața.</div>
+      )}
       {!items && <div className="text-blue-200">{t('loading')}...</div>}
       <div className="grid md:grid-cols-3 gap-4">
         {items?.map(it=> (
@@ -101,44 +125,13 @@ function Feed({ t, apiBase }){
 
 function Admin({ t, apiBase }){
   const seed = async ()=>{
-    const demo = [
-      {
-        title: 'Rolex Daytona 116500LN',
-        description: 'Ceas sport din oțel, cadran alb, ceramica neagră.',
-        images: ['https://images.unsplash.com/photo-1524805444758-089113d48a6d?q=80&w=1600&auto=format&fit=crop'],
-        auction_start_price: 15000,
-        buy_now_price: 27500,
-        shares_total: 100,
-        share_price: 300,
-        raffle_tickets_total: 1000,
-        raffle_ticket_price: 25,
-      },
-      {
-        title: 'Ferrari F8 Tributo',
-        description: 'Supercar V8 twin-turbo, roșu corsa.',
-        images: ['https://images.unsplash.com/photo-1511919884226-fd3cad34687c?q=80&w=1600&auto=format&fit=crop'],
-        auction_start_price: 220000,
-        buy_now_price: 320000,
-        shares_total: 1000,
-        share_price: 500,
-        raffle_tickets_total: 5000,
-        raffle_ticket_price: 50,
-      },
-      {
-        title: 'Vila pe malul lacului',
-        description: 'Proprietate exclusivă cu ponton privat.',
-        images: ['https://images.unsplash.com/photo-1600585154526-990dced4db0d?q=80&w=1600&auto=format&fit=crop'],
-        auction_start_price: 450000,
-        buy_now_price: 650000,
-        shares_total: 10000,
-        share_price: 1500,
-        raffle_tickets_total: 20000,
-        raffle_ticket_price: 200,
-      },
-    ]
-    for(const d of demo){
-      await fetch(`${apiBase}/api/admin/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(d) })
-    }
+    const demo = getMockProducts()
+    try{
+      // Try to seed via API; if it fails, just go home where mock is shown
+      for(const d of demo){
+        await fetch(`${apiBase}/api/admin/products`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(d) })
+      }
+    }catch{}
     window.location.href = '/'
   }
   return (
@@ -160,7 +153,7 @@ function RouterViews({ t, apiBase }){
   if(match){
     const id = match[1]
     return <ProductDetail id={id} t={t} apiBase={apiBase} />
-  }
+    }
   return <Feed t={t} apiBase={apiBase} />
 }
 

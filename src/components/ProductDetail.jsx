@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { getMockProducts } from '../lib/mockData'
 
 const optionKeys = ['auction','buy_now','tokenization','raffle','not_interested']
 
 export default function ProductDetail({ id, t, apiBase }) {
   const [item, setItem] = useState(null)
   const [wsConnected, setWsConnected] = useState(false)
+  const [isMock, setIsMock] = useState(false)
   const wsRef = useRef(null)
   const [selected, setSelected] = useState('auction')
   const [qty, setQty] = useState(1)
@@ -15,21 +17,34 @@ export default function ProductDetail({ id, t, apiBase }) {
 
   useEffect(()=>{
     const run = async ()=>{
-      const res = await fetch(`${apiBase}/api/products/${id}`)
-      const data = await res.json()
-      setItem(data.data)
-      const wsUrl = (apiBase||'').replace('http','ws') + `/ws/products/${id}`
-      const ws = new WebSocket(wsUrl)
-      wsRef.current = ws
-      ws.onopen = ()=> setWsConnected(true)
-      ws.onclose = ()=> setWsConnected(false)
-      ws.onmessage = (e)=>{
+      try{
+        const res = await fetch(`${apiBase}/api/products/${id}`)
+        if(!res.ok) throw new Error('bad status')
+        const data = await res.json()
+        if(!data?.data) throw new Error('no data')
+        setItem(data.data)
+        setIsMock(false)
+        // try WS
         try{
-          const msg = JSON.parse(e.data)
-          if(msg.type==='votes.update'){
-            setItem(prev=> prev ? ({...prev, counts: msg.counts}) : prev)
+          const wsUrl = (apiBase||'').replace('http','ws') + `/ws/products/${id}`
+          const ws = new WebSocket(wsUrl)
+          wsRef.current = ws
+          ws.onopen = ()=> setWsConnected(true)
+          ws.onclose = ()=> setWsConnected(false)
+          ws.onmessage = (e)=>{
+            try{
+              const msg = JSON.parse(e.data)
+              if(msg.type==='votes.update'){
+                setItem(prev=> prev ? ({...prev, counts: msg.counts}) : prev)
+              }
+            }catch{}
           }
         }catch{}
+      }catch{
+        // Fallback to mock
+        const mock = getMockProducts().find(p=>p._id===id) || getMockProducts()[0]
+        setItem(mock)
+        setIsMock(true)
       }
     }
     run()
@@ -37,23 +52,44 @@ export default function ProductDetail({ id, t, apiBase }) {
   },[id, apiBase])
 
   const handleVote = async ()=>{
+    if(isMock){
+      // Local optimistic update for demo preview
+      setItem(prev=>{
+        if(!prev) return prev
+        const next = { ...prev, counts: { ...prev.counts } }
+        if(selected==='tokenization'){
+          next.counts.tokenization = Number(next.counts.tokenization||0) + Math.max(1, qty)
+        }else if(selected==='raffle'){
+          next.counts.raffle = Number(next.counts.raffle||0) + Math.max(1, qty)
+        }else{
+          next.counts[selected] = Number(next.counts[selected]||0) + 1
+        }
+        return next
+      })
+      return
+    }
     const body = { option: selected }
     if(selected==='tokenization') body.desired_shares = qty
     if(selected==='raffle') body.desired_tickets = qty
-    const res = await fetch(`${apiBase}/api/products/${id}/vote`,{
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
-    })
-    const data = await res.json()
-    if(data?.data?.counts){
-      setItem(prev=> prev ? ({...prev, counts: data.data.counts}) : prev)
-    }
+    try{
+      const res = await fetch(`${apiBase}/api/products/${id}/vote`,{
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+      })
+      const data = await res.json()
+      if(data?.data?.counts){
+        setItem(prev=> prev ? ({...prev, counts: data.data.counts}) : prev)
+      }
+    }catch{}
   }
 
   if(!item) return <div className="text-blue-200">{t('loading')}...</div>
-  const loc = (item.locales||[]).find(l=>l.locale===t.locale) || (item.locales||[])[0]
+  const loc = (item.locales||[]).find(l=>l.locale===t.locale) || (item.locales||[])[0] || { title: item.title, description: item.description }
 
   return (
     <div className="max-w-6xl mx-auto p-4">
+      {isMock && (
+        <div className="mb-3 text-xs text-amber-300">Demo preview: această pagină folosește date simulate locale.</div>
+      )}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-slate-800/60 border border-slate-700 rounded-xl overflow-hidden">
           <div className="aspect-video bg-slate-700/50 flex items-center justify-center text-slate-300">
@@ -101,7 +137,7 @@ export default function ProductDetail({ id, t, apiBase }) {
               {t('confirm_vote')}
             </button>
           </div>
-          <div className="text-xs text-blue-300">WS: {wsConnected? 'connected':'disconnected'}</div>
+          <div className="text-xs text-blue-300">{isMock ? 'WS: demo (local)' : `WS: ${wsConnected? 'connected':'disconnected'}`}</div>
         </div>
       </div>
     </div>
