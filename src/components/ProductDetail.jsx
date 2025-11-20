@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getMockProducts } from '../lib/mockData'
+import { useCountdown } from '../lib/useCountdown'
 
 const optionKeys = ['auction','buy_now','tokenization','raffle','not_interested']
 
@@ -10,6 +11,7 @@ export default function ProductDetail({ id, t, apiBase }) {
   const wsRef = useRef(null)
   const [selected, setSelected] = useState('auction')
   const [qty, setQty] = useState(1)
+  const { hours, minutes, seconds } = useCountdown(72)
 
   const counts = item?.counts || { auction:0, buy_now:0, tokenization:0, raffle:0, not_interested:0 }
   const total = Object.values(counts).reduce((a,b)=>a+Number(b||0),0)||1
@@ -92,12 +94,20 @@ export default function ProductDetail({ id, t, apiBase }) {
       )}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-slate-800/60 border border-slate-700 rounded-xl overflow-hidden">
-          <div className="aspect-video bg-slate-700/50 flex items-center justify-center text-slate-300">
-            {item.images?.[0] ? (
-              <img src={item.images[0]} alt={loc.title} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-sm">{t('no_image')}</span>
-            )}
+          <div className="relative">
+            <div className="aspect-video bg-slate-700/50 flex items-center justify-center text-slate-300">
+              {item.images?.[0] ? (
+                <img src={item.images[0]} alt={loc.title} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm">{t('no_image')}</span>
+              )}
+            </div>
+            <div className="absolute top-2 left-2">
+              <span className="px-2 py-1 text-[10px] uppercase tracking-wide rounded bg-indigo-500/30 text-indigo-200 border border-indigo-400/40">Preview</span>
+            </div>
+            <div className="absolute top-2 right-2">
+              <span className="px-2 py-1 text-[10px] rounded bg-slate-900/70 text-blue-200 border border-slate-700">{String(hours).padStart(2,'0')}:{String(minutes).padStart(2,'0')}:{String(seconds).padStart(2,'0')}</span>
+            </div>
           </div>
           <div className="p-4 text-sm text-slate-300 space-y-1">
             <div>{t('auction_start')}: {item.auction_start_price ?? '-'}</div>
